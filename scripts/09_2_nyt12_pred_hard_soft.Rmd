@@ -1,0 +1,68 @@
+---
+title: "NYT12 Pred Tables"
+author: "Daniel Weitzel"
+date: "5/31/2019"
+output: 
+  pdf_document:
+    keep_tex: true
+header-includes:
+  \AtBeginDocument{\let\maketitle\relax}
+---
+ 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+setwd(basedir)
+setwd("db2")
+
+## Libraries
+library(rio)
+library(tidyverse)
+library(kableExtra)
+
+## Load data 
+df_nyt12 <- import("/Users/dw28396/Dropbox/db2/predictions/agg_2012_nyt_pred.csv")
+
+## Top10 Pred Summary 
+df_nyt12 <- 
+  df_nyt12 %>%
+  select(-date) %>% 
+  unique() %>% 
+  select(news_source, label_name) %>% 
+  mutate(news_source = str_replace(news_source, "fox_politics", "FOX Politics"),
+         news_source = str_replace(news_source, "fox", "FOX News"),
+         news_source = str_replace(news_source, "google", "Google"),
+         news_source = str_replace(news_source, "hpmg", "Huffington Post"),
+         news_source = str_replace(news_source, "nyt", "NYT"),
+         news_source = str_replace(news_source, "usat", "USA Today"),
+         news_source = str_replace(news_source, "wsj", "WSJ"),
+         news_source = str_replace(news_source, "yahoo", "Yahoo")) %>% 
+  add_count(news_source) %>% 
+  rename(total = n)  
+
+df_nyt12_2 <- 
+  df_nyt12 %>%   
+  mutate(label_name = ifelse(label_name == "Business Finance" | label_name == "Foreign News" |
+                               label_name == "National" | label_name == "Science"| label_name == "Health"
+                             , "Hard", "Soft")) %>% 
+  add_count(news_source, label_name) %>% 
+  rename(label = n) %>% 
+  unique() %>% 
+  mutate(percent  = label/total,
+         percent = round(percent,2)) %>% 
+  select(-label) %>% 
+  spread(key = label_name, value = percent) %>% 
+  mutate_if(is.numeric, funs(ifelse(is.na(.), 0, .))) %>% 
+  rename(Source = news_source,
+         Total = total)
+
+#mean(df_nyt12_2$Hard)
+#mean(df_nyt12_2$Soft)
+```
+
+
+```{r tab:nyt12_pred_hard_soft, echo=FALSE, results='asis'}
+df_nyt12_2  %>% 
+  kable("latex", booktabs = T, caption = "NYT12 Prediction - Share of Hard and Soft News",  align = "l") %>% 
+  kable_styling(position = "center")
+```
